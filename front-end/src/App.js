@@ -1,8 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { isValidEmail, getRandomColor, generateGuid, setCookie, getCookie, removeCookie } from './common/utilities.js'
 import './App.css';
 
 function App() {
+  const [showCookieWarning, setShowCookieWarning] = useState(true);
   const [joined, setJoined] = useState(false);
+  const [uid, setUid] = useState('');
+  const [uidExists, setUidExists] = useState(false);
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [currentActiveUser, setCurrentActiveUser] = useState({});
@@ -13,18 +17,69 @@ function App() {
   const [users, setUsers] = useState([]);
   const [rooms, setRooms] = useState(['General']);
 
-  const handleJoin = () => {
+  useEffect(() => {
+    const uidCookie = getCookie('uid');
+    if (uidCookie) {
+      setShowCookieWarning(false);
+      setUidExists(true);
+      setUid(uidCookie);
+      setEmail('nageshkumar.y@gmail.com');
+      setName('nagesh');
+        // You can also set other state variables based on the uidCookie
+    }
+  }, []);
+
+  const handleAcceptCookies = () => {
+    setShowCookieWarning(false);
+  };
+
+  const handleClearSessions = () => {
+    setShowCookieWarning(true);
+    setUidExists(false);
+    setUid('');
+    setEmail('');
+    setName('');
+    removeCookie('uid');
+    window.location.reload();
+  };
+
+  const handleNewJoin = async () => {
+    if (showCookieWarning) {
+      alert('Please consent to our use of cookies before proceeding');
+      return;
+    }
     // Validate email and name (optional)
     if (isValidEmail(email) && name.trim() !== '') {
-      const randomColor = getRandomColor(); // Assuming getRandomColor() returns a valid color
-      const newUser = { email, name, joined: true, color: randomColor };
-      setJoined(true);
-      setCurrentActiveUser(newUser); // Assuming this state is used elsewhere
-      setUsers([...users, newUser]);
-      // Send user join request to server (if applicable)
+      const uid = generateGuid();
+      await handleJoin(uid, email, name);
     } else {
       alert('Please enter a valid email and name');
     }
+  };
+
+  const handleExistingJoin = async () => {
+    await handleJoin(uid, email, name);
+  };
+
+  const handleJoin = async (uid, email, name) => {
+    const randomColor = getRandomColor();
+    const newUser = { uid, email, name, joined: true, color: randomColor };
+
+    try {
+      removeCookie('uid');
+      setCookie('uid', uid.toString());
+    } catch (error) {
+      console.error('Error storing uid in cookie:', error);
+      alert('An error occurred while joining the chat. Please try again.');
+      return;
+    }
+
+    setUid(uid);
+    setUidExists(true);
+    setJoined(true);
+    setCurrentActiveUser(newUser);
+    setUsers([...users, newUser]);
+    // Send user join request to server (if applicable)
   };
 
   const handleRoomChange = (room) => {
@@ -71,9 +126,16 @@ function App() {
 
   return (
       <>
+      {showCookieWarning && (
+        <div id="cookie-consent" className="cookie-consent">
+          This website uses cookies to enhance your experience. By continuing to use this website, you consent to our use of cookies.
+          <button id="accept-cookies" onClick={handleAcceptCookies}>Accept Cookies</button>
+        </div>
+      )}
       {!joined ? (
         <div className="join-form">
           <h2>Join the Chatter</h2>
+          <span style={{color:'red'}}>Session Id: {uid}</span>
           <div className="form-group">
             <label htmlFor="email">Email:</label>
             <input
@@ -93,7 +155,12 @@ function App() {
             />
           </div>
           <button className="join-button" 
-            onClick={handleJoin}>Join</button>
+            onClick={handleNewJoin}>Join New Session</button>
+          <button className="join-button" disabled={!uidExists}
+            style={{ display: uidExists ? 'block' : 'none' }}
+            onClick={handleExistingJoin}>Join Existing Session</button>
+          <button className="join-button"
+            onClick={handleClearSessions}>Clear Previous Sessions</button>
       </div>
       ) : (
         <div className="chat-app">
@@ -171,7 +238,7 @@ function App() {
               <label htmlFor="name">Message:</label>
               <textarea
                 id="message"
-                rows="4"
+                rows="5"
                 placeholder="Type your message here..."
                 disabled={!joined}
                 onChange={(e) => setCurrentMessage({ content: e.target.value, sender: currentActiveUser, room: currentActiveRoom })}
@@ -187,21 +254,5 @@ function App() {
     </>
   );
 }
-
-function isValidEmail(email) {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email);
-}
-
-function getRandomColor() {
-  const letters = '0123456789ABCDEF';
-  let color = '#';
-  for (let i = 0; i < 6; i++) {
-    // Generate a random number between 0 and 8 (inclusive)
-    const randomIndex = Math.floor(Math.random() * 9);
-    color += letters[randomIndex];
-  }
-  return color.toString();
-};
 
 export default App;
