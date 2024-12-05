@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { isValidEmail, getRandomColor, generateGuid, setCookie, getCookie, removeCookie } from './common/utilities.js'
+import { checkConnection, fetchRooms, addRoom, fetchUsers, addUser, fetchMessages, addMessage } from './service/service.js'
 import './App.css';
 
 function App() {
@@ -9,23 +10,37 @@ function App() {
   const [uidExists, setUidExists] = useState(false);
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
+  const [color, setColor] = useState('');
   const [currentActiveUser, setCurrentActiveUser] = useState({});
   const [currentActiveRoom, setCurrentActiveRoom] = useState('General');
   const [currentNewRoom, setCurrentNewRoom] = useState('');
   const [currentMessage, setCurrentMessage] = useState({});
   const [messages, setMessages] = useState([]);
   const [users, setUsers] = useState([]);
-  const [rooms, setRooms] = useState(['General']);
+  const [rooms, setRooms] = useState([]);
 
   useEffect(() => {
+    async function testConnection() {
+      const connected = await checkConnection();
+      if (!connected) {
+        alert("Unable to connect to server. Try after some time.");
+        window.close();
+      } else {
+        await handleFetchRooms();
+        await handleFetchUsers();
+        await handleFetchMessages();
+      }
+    }
+    testConnection();
+
     const uidCookie = getCookie('uid');
     if (uidCookie) {
       setShowCookieWarning(false);
       setUidExists(true);
-      setUid(uidCookie);
-      setEmail('nageshkumar.y@gmail.com');
-      setName('nagesh');
-        // You can also set other state variables based on the uidCookie
+      const nameCookie = getCookie('name');
+      const emailCookie = getCookie('email');
+      setEmail(emailCookie);
+      setName(nameCookie);
     }
   }, []);
 
@@ -40,8 +55,26 @@ function App() {
     setEmail('');
     setName('');
     removeCookie('uid');
+    removeCookie('name');
+    removeCookie('email');
+    removeCookie('color');
     window.location.reload();
   };
+
+  const handleFetchRooms = async () => {
+    const newRooms = await fetchRooms();
+    setRooms(newRooms);
+  }
+
+  const handleFetchUsers = async () => {
+    const newUsers = await fetchUsers();
+    setUsers(newUsers);
+  }
+
+  const handleFetchMessages = async () => {
+    const newMessages = await fetchMessages();
+    setMessages(newMessages);
+  }
 
   const handleNewJoin = async () => {
     if (showCookieWarning) {
@@ -50,54 +83,64 @@ function App() {
     }
     // Validate email and name (optional)
     if (isValidEmail(email) && name.trim() !== '') {
-      const uid = generateGuid();
-      await handleJoin(uid, email, name);
-    } else {
+      const newUid = generateGuid();
+      const randomColor = getRandomColor();
+      try {
+        removeCookie('uid');
+        removeCookie('name');
+        removeCookie('email');
+        removeCookie('color');
+        setCookie('uid', newUid.toString());
+        setCookie('name', name);
+        setCookie('email', email);
+        setCookie('color', randomColor);
+      } catch (error) {
+        console.error('Error storing uid in cookie:', error);
+        alert('An error occurred while joining the chat. Please try again.');
+        return;
+      }
+      // Send user join request to server
+      const newUser = { uid: newUid, email: email, name: name, active: true, color: randomColor };
+      await addUser(newUser);
+      await handleJoin(newUser);
+  } else {
       alert('Please enter a valid email and name');
     }
   };
 
   const handleExistingJoin = async () => {
-    await handleJoin(uid, email, name);
+    const uidCookie = getCookie('uid');
+    const colorCookie = getCookie('color');
+    const existingUser = { uid: uidCookie, email: email, name: name, active: true, color: colorCookie };
+    await handleJoin(existingUser);
   };
 
-  const handleJoin = async (uid, email, name) => {
-    const randomColor = getRandomColor();
-    const newUser = { uid, email, name, joined: true, color: randomColor };
-
-    try {
-      removeCookie('uid');
-      setCookie('uid', uid.toString());
-    } catch (error) {
-      console.error('Error storing uid in cookie:', error);
-      alert('An error occurred while joining the chat. Please try again.');
-      return;
-    }
-
-    setUid(uid);
+  const handleJoin = async (user) => {
+    setUid(user.uid);
     setUidExists(true);
     setJoined(true);
-    setCurrentActiveUser(newUser);
-    setUsers([...users, newUser]);
-    // Send user join request to server (if applicable)
+    setColor(user.color);
+    setCurrentActiveUser(user);
   };
 
-  const handleRoomChange = (room) => {
+  const handleRoomChange = async (room) => {
     setCurrentActiveRoom(room);
-    // Fetch messages and users for the new room (if applicable)
+    await handleFetchMessages();
   };
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (joined) {
       // Prevent sending empty messages
       if (currentMessage.content.trim() !== '') {
+        // Send the message to the server 
+        const newMid = generateGuid();
+        const newMessage = { mid: newMid, content: currentMessage.content, sender: currentActiveUser, room: currentActiveRoom };
+        await addMessage(newMessage);
         // Update the local message list
-        setMessages([...messages, currentMessage]); // Add message object
+        // setMessages([...messages, currentMessage]); // Add message object
         // Scroll to the bottom of the chat window
         const chatWindow = document.querySelector('.chat-window');
         chatWindow.scrollTop = chatWindow.scrollHeight;
-
-        // Send the message to the server (if applicable)
       } else {
         alert('Please enter a message to send');
       }
@@ -106,13 +149,16 @@ function App() {
     }
   };
 
-  const handleNewRoom = () => {
+  const handleNewRoom = async () => {
     if (joined) {
       // Prevent empty room names
       if (currentNewRoom.trim() !== '') {
         const isDuplicate = rooms.includes(currentNewRoom);
         if (!isDuplicate) {
-          setRooms([...rooms, currentNewRoom]);
+          // Send room add request to server
+          const newRid = generateGuid();
+          const newRoom = { rid: newRid, name: currentNewRoom, active: true };
+          await addRoom(newRoom);
         } else {
           alert('This room name already exists!');
         }
@@ -191,7 +237,7 @@ function App() {
                       name="room"
                       value={room}
                       checked={currentActiveRoom === room}
-                      onChange={() => setCurrentActiveRoom(room)}
+                      onChange={(e) => handleRoomChange(e.target.value)}
                     />
                     <label htmlFor={room}>{room}</label>
                   </div>
@@ -204,17 +250,15 @@ function App() {
             {/* Display selected room name */}
             <h2>Current Chat Room: {currentActiveRoom}</h2>
             <div className="chat-window">
-              <ul>
-                {messages
-                  .filter(message => message.room === currentActiveRoom)
-                  .map((message, index) => (
-                  <li key={index}>
-                    <span className={message.sender.joined ? 'joined-user' : ''} 
+              {messages
+                .filter(message => message.room === currentActiveRoom)
+                .map((message, index) => (
+                <div style={{margin: '5px'}}>
+                  <span className={message.sender.uid === uid ? 'joined-user-message' : ''} 
                       style={{ color: message.sender.color }}>
-                        {message.sender.name}</span> : {message.content}
-                  </li>
+                        {message.sender.name} : {message.content}</span>
+                </div>
                 ))}
-              </ul>
             </div>
           </div>
 
@@ -224,7 +268,7 @@ function App() {
             <div className="user-list">
               <ul>
                 {users.map((user, index) => (
-                  <li key={index} className={user.joined ? 'joined-user' : ''}>
+                  <li key={index} className={user.uid === uid ? 'joined-user' : ''}>
                     <span style={{ color: user.color }}>{user.name}</span>
                   </li>
                 ))}

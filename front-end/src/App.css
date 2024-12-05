@@ -57,8 +57,6 @@
 }
 
 .chat-window {
-  display: flex;
-  justify-content: flex-start; /* Align items to the left */
   height: 380px;
   max-height: 380px; /* Adjust the height as needed */
   overflow-y: scroll; /* Add scrollbar for long chat history */
@@ -132,6 +130,11 @@
   padding: 10px;
   border-radius: 4px;
   cursor: pointer;
+}
+
+.joined-user-message {
+  font-weight: bold;
+  font-style: italic;
 }
 
 .joined-user {
