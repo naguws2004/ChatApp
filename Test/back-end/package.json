@@ -1,5 +1,5 @@
 {
-  "name": "db-service",
+  "name": "back-end",
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
@@ -10,12 +10,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "cors": "^2.8.5",
-    "express": "^4.21.1",
-    "mongodb": "^6.11.0",
-    "mongoose": "^8.8.3",
-    "socket.io": "^4.8.1",
-    "swagger-jsdoc": "^6.2.8",
-    "swagger-ui-express": "^5.0.1"
+    "express": "^4.21.2",
+    "socket.io": "^4.8.1"
   }
 }

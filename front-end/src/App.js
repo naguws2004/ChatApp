@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { isValidEmail, getRandomColor, generateGuid, setCookie, getCookie, removeCookie } from './common/utilities.js'
 import { checkConnection, fetchRooms, addRoom, fetchUsers, addUser, fetchMessages, addMessage } from './service/service.js'
 import './App.css';
+import io from 'socket.io-client';
 
 function App() {
   const [showCookieWarning, setShowCookieWarning] = useState(true);
@@ -18,7 +19,9 @@ function App() {
   const [messages, setMessages] = useState([]);
   const [users, setUsers] = useState([]);
   const [rooms, setRooms] = useState([]);
-
+  const [message, setMessage] = useState('');
+  const socket = io('http://localhost:7000');
+  
   useEffect(() => {
     async function testConnection() {
       const connected = await checkConnection();
@@ -35,14 +38,43 @@ function App() {
 
     const uidCookie = getCookie('uid');
     if (uidCookie) {
+      setUid(uidCookie);
       setShowCookieWarning(false);
       setUidExists(true);
       const nameCookie = getCookie('name');
       const emailCookie = getCookie('email');
+      const colorCookie = getCookie('color');
       setEmail(emailCookie);
       setName(nameCookie);
+      setColor(colorCookie);
     }
+
+    // Add the listener for the 'message' event
+    socket.on('message', (data) => {
+      setMessage(data); // Update the state with the received message
+    });
+
+    // Cleanup function to remove the listener on component unmount
+    return () => socket.off('message');
   }, []);
+
+  useEffect(() => {
+    async function performFetch() {
+      const parsedResponse = JSON.parse(message.message);
+      const { type } = parsedResponse;
+  
+      if (type === 'new_room') {
+        await handleFetchRooms();
+      }
+      if (type === 'new_user') {
+        await handleFetchUsers();
+      }
+      if (type === 'new_message') {
+        await handleFetchMessages();
+      }
+    }
+    if (message) performFetch();
+  }, [message]);
 
   const handleAcceptCookies = () => {
     setShowCookieWarning(false);
@@ -109,9 +141,7 @@ function App() {
   };
 
   const handleExistingJoin = async () => {
-    const uidCookie = getCookie('uid');
-    const colorCookie = getCookie('color');
-    const existingUser = { uid: uidCookie, email: email, name: name, active: true, color: colorCookie };
+    const existingUser = { uid: uid, email: email, name: name, active: true, color: color };
     await handleJoin(existingUser);
   };
 

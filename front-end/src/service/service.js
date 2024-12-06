@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const url = 'http://192.168.0.109:5000'; 
+const url = 'http://localhost:5000'; 
 const apiUrl = url + '/api'; 
 
 export const checkConnection = async () => {
@@ -17,6 +17,11 @@ export const fetchRooms = async () => {
     try {
         const response = await axios.get(`${apiUrl}/rooms`);
         const rooms = [];
+        response.data.sort((a, b) => {
+            const dateA = new Date(a.date);
+            const dateB = new Date(b.date);
+            return dateB - dateA;
+          });
         response.data.map(obj => rooms.push(obj.name));
         return rooms;
     } catch (error) {
@@ -39,6 +44,11 @@ export const addRoom = async (data) => {
 export const fetchUsers = async () => {
     try {
         const response = await axios.get(`${apiUrl}/users`);
+        response.data.sort((a, b) => {
+            const dateA = new Date(a.date);
+            const dateB = new Date(b.date);
+            return dateB - dateA;
+          });
         const users = response.data.map(obj => ({
             uid: obj.uid, 
             email: obj.email, 

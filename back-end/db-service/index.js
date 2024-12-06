@@ -5,11 +5,13 @@ const cors = require('cors');
 const swaggerUi = require('swagger-ui-express');
 const swaggerJsdoc = require('swagger-jsdoc');
 const connectDB = require('./db');
+
 const Room = require('./models/Room');
 const User = require('./models/User');
 const Message = require('./models/Message');
 
 const app = express();
+const http = require('http').Server(app);
 
 const options = {
   definition: {
@@ -29,8 +31,48 @@ app.use(express.json({ extended: false }));
 app.use(cors()); // This line enables CORS for all origins
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
 
+const io = require('socket.io')(http, {
+    cors: {
+        origin: "http://localhost:3000"
+    }
+});
+
+io.on('connection', (socket) => {
+    console.log('A user connected');
+    // Handle client disconnection
+    socket.on('disconnect', () => {
+        console.log('A user disconnected');
+    });
+});
+
+const broadcast = (message) => {
+    try {
+        io.emit('message', { message: message });
+        console.log('broadcast message sent...');
+    } catch (err) {
+        console.error(err.message);
+    }
+};
+
 // Connect to MongoDB Database
-connectDB();
+connectDB().then(async () => {
+    console.log('Starting Database seeding operation.');
+    const roomCount = await Room.countDocuments();
+    if (!roomCount) {
+        const roomData = [
+            {
+                rid: '46b08a9e-1bb9-465b-85d8-6bb7c69b5385',
+                name: 'General',
+                active: true
+            }
+        ];
+        for (const item of roomData) {
+            await Room.create(item);
+            console.log('New Room Added.');
+        }
+    }
+    console.log('Database seeded successfully.');
+});
 
 // Define Routes
 app.get('/', (req, res) => res.send('API Running'));
@@ -120,8 +162,8 @@ app.post('/api/rooms', async (req, res) => {
             name,
             active
         });
-        console.log(room);
         const savedRoom = await room.save();
+        broadcast(JSON.stringify({ type: 'new_room', data: room }));
         res.json(savedRoom);
     } catch (err) {
         console.error(err.message);
@@ -141,8 +183,8 @@ app.post('/api/users', async (req, res) => {
             color,
             active
         });
-        console.log(user);
         const savedUser = await user.save();
+        broadcast(JSON.stringify({ type: 'new_user', data: user }));
         res.json(savedUser);
     } catch (err) {
         console.error(err.message);
@@ -161,8 +203,8 @@ app.post('/api/messages', async (req, res) => {
             sender,
             room
         });
-        console.log(message);
         const savedMessage = await message.save();
+        broadcast(JSON.stringify({ type: 'new_message', data: message }));
         res.json(savedMessage);
     } catch (err) {
         console.error(err.message);
@@ -284,7 +326,8 @@ app.delete('/api/messages/:mid', async (req, res) => {
     }
 });
 
-const PORT = process.env.PORT || 5000;
+const WEBPORT = 5000;
+const SOCKETPORT = 7000;
 
-app.listen(PORT, () => console.log(`Server started on port ${PORT}`));
-
+http.listen(SOCKETPORT, () => console.log(`Server listening on ${SOCKETPORT}`));
+app.listen(WEBPORT, () => console.log(`Server started on port ${WEBPORT}`));
