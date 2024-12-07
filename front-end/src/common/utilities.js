@@ -1,3 +1,4 @@
+// common/utilities.js
 import Cookies from 'js-cookie';
 
 export function isValidEmail(email) {

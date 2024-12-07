@@ -1,3 +1,4 @@
+// App.js
 import React, { useState, useEffect } from 'react';
 import { isValidEmail, getRandomColor, generateGuid, setCookie, getCookie, removeCookie } from './common/utilities.js'
 import { checkConnection, fetchRooms, addRoom, fetchUsers, addUser, fetchMessages, addMessage } from './service/service.js'
