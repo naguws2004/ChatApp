@@ -13,6 +13,8 @@ const Message = require('./models/Message');
 const app = express();
 const http = require('http').Server(app);
 
+const { Kafka } = require('kafkajs');
+
 const options = {
   definition: {
     openapi: '3.0.0',
@@ -53,6 +55,61 @@ const broadcast = (message) => {
         console.error(err.message);
     }
 };
+
+// Create a Kafka producer instance
+const kafka = new Kafka({
+    clientId: 'chat-app', // Replace with a unique client ID
+    brokers: ['localhost:9092'] // Replace with your Kafka broker address
+  });
+
+const publishNewMessage = async (message) => {
+    // Send message to Kafka topic
+    const producer = kafka.producer();
+    await producer.connect();
+    await producer.send({
+      topic: 'chat-messages', // Replace with your Kafka topic name
+      messages: [
+        { value: JSON.stringify({ type: 'new_message', data: message }) },
+      ],
+    });
+    console.log('message published to message broker');
+    await producer.disconnect();
+
+    const consumer = kafka.consumer({ groupId: 'chat-app-consumer' });
+    await consumer.connect();
+    await consumer.subscribe({ topic: 'chat-messages', fromBeginning: true });
+    await consumer.run({
+        eachMessage: async ({ message }) => {
+            console.log('message consumed from message broker');
+            broadcast(message);
+        }
+    });
+};
+
+// const kafkaConsumer = kafka.consumer({
+//     groupId: 'chat-app-consumer', // Replace with a unique group ID
+//     brokers: ['localhost:9092'] // Replace with your Kafka broker address
+// });
+  
+// kafkaConsumer.on('ready', () => {
+//     console.log('Kafka consumer connected');
+//     kafkaConsumer.subscribe(['chat-messages'], (err) => {
+//         if (err) {
+//             console.error('Error subscribing to topic:', err);
+//         } else {
+//             console.log('Subscribed to topic: chat-messages');
+//         }
+//     });
+// });
+  
+// kafkaConsumer.on('message', (message) => {
+//     console.log('message consumed from message broker');
+//     broadcast(message);
+// });
+
+// kafkaConsumer.on('error', (err) => {
+//     console.error('Kafka consumer error:', err);
+// });
 
 // Connect to MongoDB Database
 connectDB().then(async () => {
@@ -204,7 +261,9 @@ app.post('/api/messages', async (req, res) => {
             room
         });
         const savedMessage = await message.save();
-        broadcast(JSON.stringify({ type: 'new_message', data: message }));
+        // Publish new message event to RabbitMQ
+        await publishNewMessage(message);
+        //broadcast(JSON.stringify({ type: 'new_message', data: message }));
         res.json(savedMessage);
     } catch (err) {
         console.error(err.message);

@@ -1,9 +1,9 @@
 // App.js
 import React, { useState, useEffect } from 'react';
+import io from 'socket.io-client';
 import { isValidEmail, getRandomColor, generateGuid, setCookie, getCookie, removeCookie } from './common/utilities.js'
 import { checkConnection, fetchRooms, addRoom, fetchUsers, addUser, fetchMessages, addMessage } from './service/service.js'
 import './App.css';
-import io from 'socket.io-client';
 
 function App() {
   const [showCookieWarning, setShowCookieWarning] = useState(true);
@@ -22,9 +22,10 @@ function App() {
   const [rooms, setRooms] = useState([]);
   const [message, setMessage] = useState('');
   const socket = io('http://localhost:7000');
-  
+
   useEffect(() => {
-    async function testConnection() {
+  
+    const connectToAPI = async () => {
       const connected = await checkConnection();
       if (!connected) {
         alert("Unable to connect to server. Try after some time.");
@@ -34,29 +35,37 @@ function App() {
         await handleFetchUsers();
         await handleFetchMessages();
       }
-    }
-    testConnection();
+    };
+    connectToAPI();
 
-    const uidCookie = getCookie('uid');
-    if (uidCookie) {
-      setUid(uidCookie);
-      setShowCookieWarning(false);
-      setUidExists(true);
-      const nameCookie = getCookie('name');
-      const emailCookie = getCookie('email');
-      const colorCookie = getCookie('color');
-      setEmail(emailCookie);
-      setName(nameCookie);
-      setColor(colorCookie);
-    }
+    const processCookies = () => {
+      const uidCookie = getCookie('uid');
+      if (uidCookie) {
+        setUid(uidCookie);
+        setShowCookieWarning(false);
+        setUidExists(true);
+        const nameCookie = getCookie('name');
+        const emailCookie = getCookie('email');
+        const colorCookie = getCookie('color');
+        setEmail(emailCookie);
+        setName(nameCookie);
+        setColor(colorCookie);
+      }
+    };
+    processCookies();
 
-    // Add the listener for the 'message' event
-    socket.on('message', (data) => {
-      setMessage(data); // Update the state with the received message
-    });
+    const connectToSocket = () => {
+      // Add the listener for the 'message' event
+      socket.on('message', (data) => {
+        setMessage(data); // Update the state with the received message
+      });
+    };
+    connectToSocket();
 
     // Cleanup function to remove the listener on component unmount
-    return () => socket.off('message');
+    return () => {
+      socket.off('message');
+    };
   }, []);
 
   useEffect(() => {

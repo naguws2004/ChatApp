@@ -1,4 +1,4 @@
 // config.js
 module.exports = {
-    mongoURI: 'mongodb://localhost:27017/ChatAppDB'
+    mongoURI: 'mongodb://0.0.0.0:27017/ChatAppDB'
 };
