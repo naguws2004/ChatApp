@@ -69,7 +69,10 @@ const publishNewMessage = async (message) => {
     await producer.send({
       topic: 'chat-messages', // Replace with your Kafka topic name
       messages: [
-        { value: JSON.stringify({ type: 'new_message', data: message }) },
+        { 
+            partition: 0,
+            key: "new_message",
+            value: JSON.stringify({ type: 'new_message', data: message }) },
       ],
     });
     console.log('message published to message broker');
@@ -79,9 +82,10 @@ const publishNewMessage = async (message) => {
     await consumer.connect();
     await consumer.subscribe({ topic: 'chat-messages', fromBeginning: true });
     await consumer.run({
-        eachMessage: async ({ message }) => {
+        eachMessage: async ({ topic, partition, message, heartbeat, pause }) => {
+            console.log('message: ' + message.value);
             console.log('message consumed from message broker');
-            broadcast(message);
+            broadcast(message.value.toString());
         }
     });
 };

@@ -69,7 +69,7 @@ function App() {
   }, []);
 
   useEffect(() => {
-    async function performFetch() {
+    const performFetch = async () => {
       const parsedResponse = JSON.parse(message.message);
       const { type } = parsedResponse;
   
@@ -83,7 +83,10 @@ function App() {
         await handleFetchMessages();
       }
     }
-    if (message) performFetch();
+    
+    if (message) {
+      performFetch();
+    }
   }, [message]);
 
   const handleAcceptCookies = () => {
