@@ -224,7 +224,6 @@ function App() {
       {!joined ? (
         <div className="join-form">
           <h2>Join the Chatter</h2>
-          <span style={{color:'red'}}>Session Id: {uid}</span>
           <div className="form-group">
             <label htmlFor="email">Email:</label>
             <input

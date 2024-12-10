@@ -68,11 +68,12 @@ const publishNewMessage = async (message) => {
     await producer.connect();
     await producer.send({
       topic: 'chat-messages', // Replace with your Kafka topic name
+      partition: 0,
+      key: "new_message",
       messages: [
         { 
-            partition: 0,
-            key: "new_message",
-            value: JSON.stringify({ type: 'new_message', data: message }) },
+            value: JSON.stringify({ type: 'new_message', data: message }) 
+        },
       ],
     });
     console.log('message published to message broker');

@@ -1,0 +1,60 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: mongo-kafka-pod
+spec:
+  containers:
+  - name: mongodb
+    image: mongo:latest  # Replace with your desired MongoDB image
+    ports:
+    - containerPort: 27017
+  - name: zookeeper
+    image: confluentinc/cp-zookeeper:latest
+    ports:
+    - containerPort: 2181
+      name: zk-client-port
+      protocol: TCP
+    - containerPort: 2888
+      name: zk-server-port
+      protocol: TCP
+    - containerPort: 3888
+      name: zk-elect-port
+      protocol: TCP
+    env:
+    - name: ZOOKEEPER_CLIENT_PORT
+      value: '2181'
+    - name: ZOOKEEPER_SERVER_PORT
+      value: '2888'
+    - name: ZOOKEEPER_ELECTION_PORT
+      value: '3888'
+    - name: ZOOKEEPER_MY_ID
+      value: '1'
+    - name: ZOOKEEPER_TICK_TIME
+      value: '2000'
+    - name: ZOOKEEPER_INIT_LIMIT
+      value: '10'
+    - name: ZOOKEEPER_SYNC_LIMIT
+      value: '5'
+    - name: ZOOKEEPER_DATA_DIR
+      value: '/var/lib/zookeeper'
+  - name: kafka
+    image: confluentinc/cp-kafka:latest
+    ports:
+    - containerPort: 9092
+      name: kafka-port
+      protocol: TCP
+    - containerPort: 9101
+      name: jmx-port
+      protocol: TCP
+    env:
+    - name: KAFKA_NODE_ID
+      value: "1"
+    - name: KAFKA_LISTENER_SECURITY_PROTOCOL_MAP
+      value: 'CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT'
+    - name: KAFKA_ADVERTISED_LISTENERS
+      value: 'PLAINTEXT://localhost:29092,PLAINTEXT_HOST://localhost:9092'
+    - name: KAFKA_ZOOKEEPER_CONNECT
+      value: 'localhost:2181'
+    - name: KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR
+      value: '1'
+      

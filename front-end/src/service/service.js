@@ -34,7 +34,7 @@ export const fetchRooms = async () => {
 export const addRoom = async (data) => {
     try {
         const response = await axios.post(`${apiUrl}/rooms`, data);
-        alert("New room Added");
+        console.log("New room Added");
         return response.data;
     } catch (error) {
         console.error('Error posting data:', error);
@@ -67,7 +67,7 @@ export const fetchUsers = async () => {
 export const addUser = async (data) => {
     try {
         const response = await axios.post(`${apiUrl}/users`, data);
-        alert("New user Added");
+        console.log("New user Added");
         return response.data;
     } catch (error) {
         console.error('Error posting data:', error);
@@ -94,7 +94,7 @@ export const fetchMessages = async () => {
 export const addMessage = async (data) => {
     try {
         const response = await axios.post(`${apiUrl}/messages`, data);
-        alert("New message Added");
+        console.log("New message Added");
         return response.data;
     } catch (error) {
         console.error('Error posting data:', error);
